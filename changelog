@@ -5,3 +5,10 @@
 #   still broke fix it later
 #   update readme to reflect this change
 
+#Loop to check on PanOS downloading #update to the install method probably won't quit loop *fixed loop result was not FIN but OK*
+#Changed version to variable
+#$stoploop = $result.SelectSingleNode("//job") | Select-Object status, result # removed this *broke loop*
+#   fixed this loop also
+#line 115 erroraction silentcontinue doesn't work right
+#tested upgrade from 9.1.0 to 9.1.2 seems to be compatable still - need to verify later
+#Updated readme and removed extra comments
