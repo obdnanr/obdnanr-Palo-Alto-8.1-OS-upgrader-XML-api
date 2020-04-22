@@ -3,4 +3,5 @@
 # Moved the ignore self signed cert into "ignore self signed certificate.ps1"
 # Changed firewall list for upgrading into a variable to use present directory
 #   still broke fix it later
+#   update readme to reflect this change
 
