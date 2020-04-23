@@ -1,4 +1,4 @@
-# Palo Alto Rest API base config upgrade 8.1.x or 9.1.x
+# Palo Alto API base config upgrade 8.1.x or 9.1.x
 # Version: Aplha-0.2 4/22/2020
 # Written by Brandon Kelley
 
@@ -8,7 +8,7 @@
 # Currently there's manual Y/N for the reboot of the firewall after install for saftey reasons
 # At this time.
 
-# Future - convert the rest API calls into variables so it's more modular and less code
+# Future - convert the API calls into variables so it's more modular and less code
 # Add more error handling and input validation
 # Create more functions, so debugging will be easier
 # Learn to create parallell proccessing to do multiple firewalls at the same time
