@@ -3,8 +3,6 @@
 # Written by Brandon Kelley
 
 # Edit firewallstoupgrade.txt with 1 IP per line
-# Connect the devices to the terminal server and mgmt to the switch.
-# IP the devices *this alpha version is using DHCP, but it'll probably need to be changed to static,
 # Currently there's manual Y/N for the reboot of the firewall after install for saftey reasons
 # At this time.
 
