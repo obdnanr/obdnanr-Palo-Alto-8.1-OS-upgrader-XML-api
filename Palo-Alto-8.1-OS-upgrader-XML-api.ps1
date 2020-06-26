@@ -1,5 +1,5 @@
 # Palo Alto API base config upgrade 8.1.x or 9.1.x
-# Version: Aplha-0.2 4/22/2020
+# Version: Aplha-0.3 4/22/2020
 # Written by Brandon Kelley
 
 # Edit firewallstoupgrade.txt with 1 IP per line
@@ -72,7 +72,7 @@ Measure-Command {
                 $job = $result.response.result.job
                 $stoploop = $result.SelectSingleNode("//job") | Select-Object status, result
                 #Loop to check on PanOS downloading 
-                while ($stoploop.result -ne "OK" -and $stoploop.status -ne "FAIL") {
+                while ($stoploop.result -ne "OK" -and $stoploop.status -ne "FIN") {
                     [xml]$result = Invoke-RestMethod -method Get -uri "https://$ip/api/?type=op&cmd=<show><jobs><id>$job</id></jobs></show>&key=$key"
                     write-host $result.response.result.job.progress "% Downloading PanOS complete"
                     $stoploop = $result.SelectSingleNode("//job") | Select-Object status, result #change the status to install one
@@ -80,6 +80,7 @@ Measure-Command {
                 }
             }
             Else {
+                $stoploop = $null
                 [xml]$result = Invoke-RestMethod -method Get -uri "https://$ip/api/?type=op&cmd=<request><system><software><install><version>$version</version></install></software></system></request>&key=$key"
                 $job = $result.response.result.job
                while ($stoploop.result -ne "OK" -and $stoploop.status -ne "FIN") {
@@ -110,7 +111,7 @@ Measure-Command {
                     $cursoftware = $result.SelectSingleNode("//sw-version")
                     write-host "$ip is still booting"
                     start-sleep -s 15
-                    if ($cursoftware -eq "$version" -and $result.response.result -ne "Command succeeded with no output") { write-host "$ip has been upgraded" }
+                    if ($cursoftware.'#text' -eq "$version" -and $result.response.result -ne "Command succeeded with no output") { write-host "$ip has been upgraded" }
                 }
             }
         }
