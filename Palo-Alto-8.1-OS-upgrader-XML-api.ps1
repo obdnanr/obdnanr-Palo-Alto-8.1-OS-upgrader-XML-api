@@ -1,5 +1,5 @@
 # Palo Alto API base config upgrade 8.1.x or 9.1.x
-# Version: Aplha-0.2 4/22/2020
+# Version: Aplha-0.4 7/23/2020
 # Written by Brandon Kelley
 
 # Edit firewallstoupgrade.txt with 1 IP per line
@@ -17,7 +17,7 @@ $ignorecert = "$PSScriptRoot\ignore self signed certificate.ps1"
 &$ignorecert
 
 #text file for IPs you want to configure
-$firewalList = (get-content "$PSScriptRoot\firewallstoupgrade.txt") 
+$firewalList = (get-content "$PSScriptRoot\firewallstoupgrade.txt")
 
 #ask user for what version of code you want *need to add 2-3 code jump process via function*
 $version = read-host 'version you want to go to'
@@ -59,41 +59,45 @@ Measure-Command {
         if ($result.response.status -ne "success") { write-host "failed license fetch on $ip" }
         # if the response isn't success write to screen - expand on this to provide error message or report after it runes
         #Check to see if PanOS is up to date
-        [xml]$result = Invoke-RestMethod -method Get -uri "https://$ip/api/?type=op&cmd=<show><system><info></info></system></show>&key=$key"
-        $cursoftware = $result.SelectSingleNode("//sw-version")
-        if ($cursoftware -ne "$version") {
+        [xml]$resultsysteminfo = Invoke-RestMethod -method Get -uri "https://$ip/api/?type=op&cmd=<show><system><info></info></system></show>&key=$key"
+        $cursoftware = $resultsysteminfo.SelectSingleNode("//sw-version")
+        if ($cursoftware.'#text' -ne "$version") {
             #Fetch available software from internet
-            [xml]$result = Invoke-RestMethod -method Get -uri "https://$ip/api/?type=op&cmd=<request><system><software><check></check></software></system></request>&key=$key"
-            if ($result.response.status -ne "success") { write-host "failed on Fetch available software $ip" }
-            $areYouUpgraded = $result.SelectSingleNode("//entry[version = ""$version""]") | Select-Object downloaded, uploaded
-            if ($areYouUpgraded.downloaded -eq 'no' -and $areYouUpgraded.uploaded -eq 'no') {
+            [xml]$resultsoft = Invoke-RestMethod -method Get -uri "https://$ip/api/?type=op&cmd=<request><system><software><check></check></software></system></request>&key=$key"
+            if ($resultsoft.response.status -ne "success") { write-host "failed on Fetch available software $ip" }
+            $areYouUpgraded = $resultsoft.SelectSingleNode("//entry[version = ""$version""]") | Select-Object downloaded
+            if ($areYouUpgraded.downloaded -eq 'no') {
                 #download $version pan os *turn that into a variable*
-                [xml]$result = Invoke-RestMethod -method Get -uri "https://$ip/api/?type=op&cmd=<request><system><software><download><version>$version</version></download></software></system></request>&key=$key"
-                $job = $result.response.result.job
-                $stoploop = $result.SelectSingleNode("//job") | Select-Object status, result
-                #Loop to check on PanOS downloading 
-                while ($stoploop.result -ne "OK" -and $stoploop.status -ne "FAIL") {
-                    [xml]$result = Invoke-RestMethod -method Get -uri "https://$ip/api/?type=op&cmd=<show><jobs><id>$job</id></jobs></show>&key=$key"
-                    write-host $result.response.result.job.progress "% Downloading PanOS complete"
-                    $stoploop = $result.SelectSingleNode("//job") | Select-Object status, result #change the status to install one
+                [xml]$resultdl = Invoke-RestMethod -method Get -uri "https://$ip/api/?type=op&cmd=<request><system><software><download><version>$version</version></download></software></system></request>&key=$key"
+                $job = $resultdl.response.result.job
+                $stoploop = $null 
+                #Loop to check on PanOS downloading
+                while ($stoploop.result -ne "OK" -and $stoploop.status -ne "FIN") {
+                    [xml]$resultdl = Invoke-RestMethod -method Get -uri "https://$ip/api/?type=op&cmd=<show><jobs><id>$job</id></jobs></show>&key=$key"
+                    $stoploop = $resultdl.response.result.job | Select-Object status, result #change the status to install one
+                    if ($stoploop.result -ne "OK" -and $stoploop.status -ne "FIN") { write-host $resultdl.response.result.job.progress "% Downloading PanOS complete" }
+                    if ($stoploop.result -eq "OK" -and $stoploop.status -eq "FIN") { write-host "$version downloaded" }                   
                     start-sleep -s 15
                 }
             }
             Else {
-                [xml]$result = Invoke-RestMethod -method Get -uri "https://$ip/api/?type=op&cmd=<request><system><software><install><version>$version</version></install></software></system></request>&key=$key"
-                $job = $result.response.result.job
-               while ($stoploop.result -ne "OK" -and $stoploop.status -ne "FIN") {
-                    [xml]$result = Invoke-RestMethod -method Get -uri "https://$ip/api/?type=op&cmd=<show><jobs><id>$job</id></jobs></show>&key=$key"
-                    write-host $result.response.result.job.progress "% complete Installing PanOS"
-                    $stoploop = $result.SelectSingleNode("//job") | Select-Object status, result
+                $stoploop2 = $null
+                # install $version that's downloaded
+                [xml]$resultinstall = Invoke-RestMethod -method Get -uri "https://$ip/api/?type=op&cmd=<request><system><software><install><version>$version</version></install></software></system></request>&key=$key"
+                $job = $resultinstall.response.result.job
+                while ($stoploop2.result -ne "OK" -and $stoploop2.status -ne "FIN") {
+                    [xml]$resultinstall = Invoke-RestMethod -method Get -uri "https://$ip/api/?type=op&cmd=<show><jobs><id>$job</id></jobs></show>&key=$key"
+                    $stoploop2 = $resultinstall.response.result.job | Select-Object status, result
+                    if ($stoploop2.result -ne "OK" -and $stoploop2.status -ne "FIN") { write-host $resultinstall.response.result.job.progress "% complete Installing PanOS" }
+                    if ($stoploop2.result -eq "OK" -and $stoploop2.status -eq "FIN") { write-host "$ip has installed $version.  Moving to reboot" }                   
                     start-sleep -s 15
                 }
             }
         }
-        #verify panOS insatlled
-        [xml]$result = Invoke-RestMethod -method Get -uri "https://$ip/api/?type=op&cmd=<request><system><software><check></check></software></system></request>&key=$key"
+        #verify panOS installed
+        [xml]$resultinstalled = Invoke-RestMethod -method Get -uri "https://$ip/api/?type=op&cmd=<request><system><software><check></check></software></system></request>&key=$key"
         #add another condition to check for uploaded also
-        $areyouinstalled = $result.SelectSingleNode("//entry[version = ""$version""]") | Select-Object current, downloaded
+        $areyouinstalled = $resultinstalled.SelectSingleNode("//entry[version = ""$version""]") | Select-Object current, downloaded
         if ($areyouinstalled.current -eq "no" -and $areyouinstalled.downloaded -eq 'yes') {
             #!!!!!!!!!!!!!!!!!!!DANGER OPERATIONAL COMMAND TO REBOOT!!!!!!!!!!!!!#!!!!!!!!!!!!!!!!!!!DANGER OPERATIONAL COMMAND TO REBOOT!!!!!!!!!!!!!
             #!!!!!!!!!!!!!!!!!!!DANGER OPERATIONAL COMMAND TO REBOOT!!!!!!!!!!!!!#!!!!!!!!!!!!!!!!!!!DANGER OPERATIONAL COMMAND TO REBOOT!!!!!!!!!!!!!
@@ -102,26 +106,70 @@ Measure-Command {
             #!!!!!!!!!!!!!!!!!!!DANGER OPERATIONAL COMMAND TO REBOOT!!!!!!!!!!!!!#!!!!!!!!!!!!!!!!!!!DANGER OPERATIONAL COMMAND TO REBOOT!!!!!!!!!!!!!
             $confirm = read-host "DO YOU WANT TO REBOOT $ip? Y/N?"
             if ($confirm -eq "Y" -or $confirm -eq "y") {
-                [xml]$result = Invoke-RestMethod -method Get -uri "https://$ip/api/?type=op&cmd=<request><restart><system></system></restart></request>&key=$key"
-                $result
+                [xml]$resultreboot = Invoke-RestMethod -method Get -uri "https://$ip/api/?type=op&cmd=<request><restart><system></system></restart></request>&key=$key"
+                $resultreboot
                 while ($cursoftware -ne "$version") {
                     #Check to see if PanOS is up to date *erroraction isn't working right fix it*
-                    [xml]$result = Invoke-RestMethod -method Get -uri "https://$ip/api/?type=op&cmd=<show><system><info></info></system></show>&key=$key" -ErrorAction SilentlyContinue
-                    $cursoftware = $result.SelectSingleNode("//sw-version")
+                    [xml]$resultfin = Invoke-RestMethod -method Get -uri "https://$ip/api/?type=op&cmd=<show><system><info></info></system></show>&key=$key" -ErrorAction SilentlyContinue
+                    $cursoftware = $resultfin.SelectSingleNode("//sw-version")
                     write-host "$ip is still booting"
                     start-sleep -s 15
-                    if ($cursoftware -eq "$version" -and $result.response.result -ne "Command succeeded with no output") { write-host "$ip has been upgraded" }
+                    if ($cursoftware.'#text' -eq "$version" -and $result.response.result -ne "Command succeeded with no output") { write-host "$ip has been upgraded" }
                 }
             }
         }
-        #learn parallell processing in powershell to make it do all firewalls in list at same time
+        #download apps/threats
+        $stoploop3 = $null
+        [xml]$resultapp = Invoke-RestMethod -method Get -uri "https://$ip/api/?type=op&cmd=<request><content><upgrade><download><latest/></download></upgrade></content></request></request>&key=$key"
+        $job = $resultapp.response.result.job
+        while ($stoploop3.result -ne "OK" -and $stoploop3.status -ne "FIN") {
+            [xml]$resultapp = Invoke-RestMethod -method Get -uri "https://$ip/api/?type=op&cmd=<show><jobs><id>$job</id></jobs></show>&key=$key"
+            $stoploop3 = $resultapp.response.result.job | Select-Object status, result
+            if ($stoploop3.result -ne "OK" -and $stoploop3.status -ne "FIN") { write-host $resultapp.response.result.job.progress "% complete downloading app/threats" }
+            if ($stoploop3.result -eq "OK" -and $stoploop3.status -eq "FIN") { write-host "downloaded apps" }
+            start-sleep -s 15
+        }
+        #install apps
+        $stoploop4 = $null
+        [xml]$resultappins = Invoke-RestMethod -method Get -uri "https://$ip/api/?type=op&cmd=<request><content><upgrade><install><version>latest</version></install></upgrade></content></request>&key=$key"
+        $job = $resultappins.response.result.job
+        while ($stoploop4.result -ne "OK" -and $stoploop4.status -ne "FIN") {
+            [xml]$resultappins = Invoke-RestMethod -method Get -uri "https://$ip/api/?type=op&cmd=<show><jobs><id>$job</id></jobs></show>&key=$key"
+            $stoploop4 = $resultappins.response.result.job | Select-Object status, result
+            if ($stoploop4.result -ne "OK" -and $stoploop4.status -ne "FIN") { write-host $resultappins.response.result.job.progress "% complete installing app/threats" }
+            if ($stoploop4.result -eq "OK" -and $stoploop4.status -eq "FIN") { write-host "installed apps" }
+            start-sleep -s 15
+        }
+        #download AV
+        $stoploop5 = $null
+        [xml]$resultavdl = Invoke-RestMethod -method Get -uri "https://$ip/api/?type=op&cmd=<request><anti-virus><upgrade><download><latest/></download></upgrade></anti-virus></request>&key=$key"
+        $job = $resultavdl.response.result.job
+        while ($stoploop5.result -ne "OK" -and $stoploop5.status -ne "FIN") {
+            [xml]$resultavdl = Invoke-RestMethod -method Get -uri "https://$ip/api/?type=op&cmd=<show><jobs><id>$job</id></jobs></show>&key=$key"
+            $stoploop5 = $resultavdl.response.result.job | Select-Object status, result
+            if ($stoploop5.result -ne "OK" -and $stoploop5.status -ne "FIN") { write-host $resultavdl.response.result.job.progress "% complete downloading av" }
+            if ($stoploop5.result -eq "OK" -and $stoploop5.status -eq "FIN") { write-host "downloaded av" }
+            start-sleep -s 15
+        }
+        #install av
+        $stoploop6 = $null
+        [xml]$resultavins = Invoke-RestMethod -method Get -uri "https://$ip/api/?type=op&cmd=<request><anti-virus><upgrade><download><latest/></download></upgrade></anti-virus></request>&key=$key"
+        $job = $resultavins.response.result.job
+        while ($stoploop6.result -ne "OK" -and $stoploop6.status -ne "FIN") {
+            [xml]$resultavins = Invoke-RestMethod -method Get -uri "https://$ip/api/?type=op&cmd=<show><jobs><id>$job</id></jobs></show>&key=$key"
+            $stoploop5 = $resultavins.response.result.job | Select-Object status, result
+            if ($stoploop6.result -ne "OK" -and $stoploop6.status -ne "FIN") { write-host $resultavins.response.result.job.progress "% installing av" }
+            if ($stoploop6.result -eq "OK" -and $stoploop6.status -eq "FIN") { write-host "installed av" }
+            start-sleep -s 15
+        }                     
     }
-    #Reset variables for next Upgrade
+}
+#Reset variables for next Upgrade
+<#
     $cursoftware = $null
     $areyouinstalled = $null
     $areYouUpgraded = $null
     $job = $null
     $result = $null
-    #finish downloading/installing app/threats/av
-    #add error handling
-}
+    #>
+#add error handling
