@@ -1,3 +1,8 @@
+# 7/73/2020 bk
+# Fixed various bugs with the loops
+# Added apps/threats and av install after upgrade
+# made it easier to debug
+
 # change log 4-22-2020 bk
 # Fixed formatting
 # Moved the ignore self signed cert into "ignore self signed certificate.ps1"
