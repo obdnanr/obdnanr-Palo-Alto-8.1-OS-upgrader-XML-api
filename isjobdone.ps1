@@ -1,4 +1,4 @@
-$ignorecert = "$PSScriptRoot\ignore self signed certificate.ps1"
+<#$ignorecert = "$PSScriptRoot\ignore self signed certificate.ps1"
 &$ignorecert
 function getapikey {
     # Get API Key with username and pw prompts
@@ -15,7 +15,7 @@ function getapikey {
     $user = $null
     $password = $null
 }
-
+#>
 function isjobdone {
     # Get API Key with username and pw prompts
     [cmdletbinding()]param ([string]$job, [string]$ip, [string]$key, [string]$whatareyoudoing)
