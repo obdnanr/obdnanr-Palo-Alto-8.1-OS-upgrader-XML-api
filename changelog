@@ -1,3 +1,12 @@
+# 7/30/2020 bk
+# Fixed an issue that caused it not to install PanOS
+# Changed the if statement that checks if it's ready to reboot to the install PanOS result
+# Fixed some ordering issues with the "isjobdone" function
+
+# 7/73/2020 bk
+# Converted loops that check for job completion into function
+# test branch
+
 # 7/73/2020 bk
 # Fixed various bugs with the loops
 # Added apps/threats and av install after upgrade
