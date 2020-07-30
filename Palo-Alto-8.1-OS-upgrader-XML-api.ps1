@@ -5,7 +5,7 @@ Written by Brandon Kelley
 
 ######  How to use  ######
 Edit firewallstoupgrade.txt with 1 IP per line
-Run the script and under the version you want to upgrade to
+Run the script and enter the version you want to upgrade to
 Enter username and password
 Enter Y/N for the reboot of the firewall after install for saftey reasons (or remove this condition)
 Do something else while your firewalls upgrade
