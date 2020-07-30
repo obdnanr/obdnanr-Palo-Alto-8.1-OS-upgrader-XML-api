@@ -143,6 +143,7 @@ Measure-Command {
             [xml]$resultavins = Invoke-RestMethod -method Get -uri "https://$ip/api/?type=op&cmd=<request><anti-virus><upgrade><download><latest/></download></upgrade></anti-virus></request>&key=$key"
             $job = $resultavins.response.result.job
             isjobdone -job $job -ip $ip -key $key -whatareyoudoing "Installing AV"
+            write-host "$ip has finished"
         }
     }
 }
