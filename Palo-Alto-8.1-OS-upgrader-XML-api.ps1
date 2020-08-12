@@ -98,6 +98,7 @@ Measure-Command {
                     [xml]$resultdl = Invoke-RestMethod -method Get -uri "https://$ip/api/?type=op&cmd=<request><system><software><download><version>$version</version></download></software></system></request>&key=$key"
                     $job = $resultdl.response.result.job
                     isjobdone -job $job -ip $ip -key $key -whatareyoudoing "Downloading PanOS"
+                    $areyoudownloaded = $resultsoft.SelectSingleNode("//entry[version = ""$version""]") | Select-Object downloaded
                 }            
                 # Install requested version that's downloaded
                 if ($areyoudownloaded.downloaded -eq 'yes') {
@@ -117,9 +118,9 @@ Measure-Command {
                     while ($areyouinstalled.'#text' -ne "$version") {
                         # Check to see if PanOS is up to date *erroractions are still showing errors*
                         [xml]$resultfin = Invoke-RestMethod -method Get -uri "https://$ip/api/?type=op&cmd=<show><system><info></info></system></show>&key=$key" -ErrorAction SilentlyContinue -WarningAction SilentlyContinue -InformationAction SilentlyContinue
-                        $areyouinstalled = $resultfin.SelectSingleNode("//sw-version")
+                        $areyouinstalled = $resultfin.response.result.system.'sw-version'
                         write-host "$ip is still booting"
-                        if ($areyouinstalled.'#text' -eq "$version") { write-host "$ip has been upgraded" }
+                        if ($areyouinstalled -eq "$version") { write-host "$ip has been upgraded" }
                         start-sleep -s 60
                     }
                 }
